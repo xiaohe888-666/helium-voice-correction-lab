@@ -1,0 +1,2072 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>氦语音矫正实验台</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #08111d;
+      --panel: #0f1d2d;
+      --panel-2: #13263a;
+      --line: #263b50;
+      --line-soft: #1a3045;
+      --text: #e9f1f7;
+      --muted: #8fa8ba;
+      --faint: #5e788d;
+      --cyan: #55d6c2;
+      --cyan-soft: #173d3c;
+      --orange: #f2a65a;
+      --orange-soft: #442c1c;
+      --red: #ef746e;
+      --white: #f7fbfd;
+      --radius: 10px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      background: var(--bg);
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      overflow-x: hidden;
+      color: var(--text);
+      background: var(--bg);
+      font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+      font-size: 14px;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      color: inherit;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--line);
+      background: #0a1522;
+    }
+
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand strong {
+      font-size: 17px;
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+    }
+
+    .brand span {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .top-actions,
+    .transport,
+    .button-row,
+    .legend,
+    .parameter-head,
+    .status-line {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .local-badge {
+      padding: 6px 10px;
+      border: 1px solid #28584f;
+      color: var(--cyan);
+      background: #102a28;
+      border-radius: 999px;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .button {
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--panel-2);
+      padding: 7px 12px;
+      cursor: pointer;
+      transition: background 120ms ease, border-color 120ms ease;
+    }
+
+    .button:hover {
+      border-color: #45627b;
+      background: #19314a;
+    }
+
+    .button:focus-visible,
+    input:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 2px;
+    }
+
+    .button.primary {
+      border-color: #3b8c80;
+      background: var(--cyan);
+      color: #05201c;
+      font-weight: 700;
+    }
+
+    .button.primary:hover {
+      background: #76e4d2;
+    }
+
+    .button.quiet {
+      background: transparent;
+      color: var(--muted);
+    }
+
+    .button.danger {
+      color: #ffaaa5;
+      border-color: #623b3b;
+    }
+
+    .button:disabled {
+      cursor: not-allowed;
+      opacity: 0.42;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 230px minmax(0, 1fr) 280px;
+      min-height: 0;
+    }
+
+    .rail,
+    .inspector {
+      padding: 20px;
+      background: #0b1725;
+    }
+
+    .rail {
+      border-right: 1px solid var(--line);
+    }
+
+    .inspector {
+      border-left: 1px solid var(--line);
+    }
+
+    .eyebrow {
+      margin: 0 0 12px;
+      color: var(--faint);
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .steps {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      counter-reset: flow;
+    }
+
+    .steps li {
+      position: relative;
+      min-height: 65px;
+      padding: 0 0 22px 36px;
+      color: var(--muted);
+      counter-increment: flow;
+    }
+
+    .steps li::before {
+      content: counter(flow, decimal-leading-zero);
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 23px;
+      height: 23px;
+      display: grid;
+      place-items: center;
+      border: 1px solid #38556c;
+      border-radius: 50%;
+      color: var(--cyan);
+      font: 600 10px/1 "Consolas", monospace;
+    }
+
+    .steps li::after {
+      content: "";
+      position: absolute;
+      left: 11px;
+      top: 28px;
+      bottom: 4px;
+      border-left: 1px solid var(--line);
+    }
+
+    .steps li:last-child::after {
+      display: none;
+    }
+
+    .steps strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .steps span {
+      display: block;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .rail-note {
+      margin-top: 8px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line-soft);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .rail-note strong {
+      color: var(--orange);
+      font-weight: 600;
+    }
+
+    .main {
+      min-width: 0;
+      padding: 22px 24px 32px;
+      overflow: auto;
+    }
+
+    .headline {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 18px;
+    }
+
+    .headline h1 {
+      margin: 0 0 6px;
+      font-size: 24px;
+      line-height: 1.25;
+      letter-spacing: 0.01em;
+    }
+
+    .headline p {
+      max-width: 720px;
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .source-actions {
+      flex: 0 0 auto;
+      align-self: flex-start;
+    }
+
+    .drop-zone {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-height: 58px;
+      margin-bottom: 16px;
+      padding: 10px 14px;
+      border: 1px dashed #38556c;
+      border-radius: var(--radius);
+      background: #0d1b2a;
+    }
+
+    .drop-zone.dragging {
+      border-color: var(--cyan);
+      background: var(--cyan-soft);
+    }
+
+    .source-icon {
+      width: 30px;
+      height: 30px;
+      flex: 0 0 auto;
+      border: 1px solid #3b596f;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: var(--cyan);
+    }
+
+    .source-copy {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .source-copy strong {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 13px;
+    }
+
+    .source-copy span {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .input-file {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .transport {
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+    }
+
+    .play-button {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      border: 1px solid #405e75;
+      border-radius: 50%;
+      background: var(--panel-2);
+      cursor: pointer;
+    }
+
+    .play-button.active {
+      border-color: var(--cyan);
+      background: var(--cyan);
+      color: #06211e;
+    }
+
+    .play-button:disabled {
+      cursor: not-allowed;
+      opacity: 0.35;
+    }
+
+    .transport-copy {
+      min-width: 110px;
+    }
+
+    .transport-copy strong {
+      display: block;
+      font-size: 13px;
+    }
+
+    .transport-copy span {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .transport-divider {
+      width: 1px;
+      height: 28px;
+      margin: 0 4px;
+      background: var(--line);
+    }
+
+    .transport-spacer {
+      flex: 1;
+    }
+
+    .process-state {
+      color: var(--faint);
+      font-size: 12px;
+    }
+
+    .process-state.busy {
+      color: var(--orange);
+    }
+
+    .process-state.ready {
+      color: var(--cyan);
+    }
+
+    .viz-grid {
+      display: grid;
+      grid-template-columns: minmax(340px, 0.95fr) minmax(420px, 1.25fr);
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .panel {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px 8px;
+    }
+
+    .panel-head h2,
+    .parameter-head h2 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .panel-head p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .panel-tag {
+      padding: 4px 7px;
+      border: 1px solid #36536a;
+      border-radius: 4px;
+      color: var(--muted);
+      font: 11px/1 "Consolas", monospace;
+      white-space: nowrap;
+    }
+
+    .mapping-wrap {
+      position: relative;
+      padding: 2px 12px 12px;
+    }
+
+    #mappingCanvas,
+    #waveCanvas,
+    #spectrumCanvas {
+      width: 100%;
+      display: block;
+      border-radius: 6px;
+      background: #091522;
+      touch-action: none;
+    }
+
+    #mappingCanvas {
+      cursor: ns-resize;
+    }
+
+    .mapping-help {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 16px 12px;
+      border-top: 1px solid var(--line-soft);
+      color: var(--faint);
+      font-size: 11px;
+    }
+
+    .spectrum-panel {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .legend {
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 3px;
+      display: inline-block;
+      border-radius: 2px;
+    }
+
+    .swatch.cyan {
+      background: var(--cyan);
+    }
+
+    .swatch.orange {
+      background: var(--orange);
+    }
+
+    .swatch.gray {
+      background: #75899a;
+    }
+
+    .canvas-stack {
+      display: grid;
+      gap: 1px;
+      background: var(--line-soft);
+    }
+
+    .canvas-label {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 14px 5px;
+      color: var(--muted);
+      background: #091522;
+      font-size: 11px;
+    }
+
+    #waveCanvas {
+      height: 104px;
+    }
+
+    #spectrumCanvas {
+      height: 238px;
+    }
+
+    .parameter-block {
+      margin-top: 14px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+    }
+
+    .parameter-head {
+      justify-content: space-between;
+      margin-bottom: 13px;
+    }
+
+    .parameter-head span {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .control label {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 9px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .control output {
+      color: var(--text);
+      font: 600 12px/1 "Consolas", monospace;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 4px;
+      margin: 0;
+      accent-color: var(--cyan);
+      cursor: pointer;
+    }
+
+    .inspector section + section {
+      margin-top: 22px;
+      padding-top: 20px;
+      border-top: 1px solid var(--line-soft);
+    }
+
+    .metric {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .metric:last-child {
+      border-bottom: 0;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .metric strong {
+      font: 600 12px/1 "Consolas", monospace;
+      text-align: right;
+    }
+
+    .status-line {
+      justify-content: space-between;
+      margin-bottom: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .meter {
+      height: 5px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #1b2e40;
+    }
+
+    .meter-fill {
+      width: 0;
+      height: 100%;
+      background: var(--cyan);
+      transition: width 180ms ease;
+    }
+
+    .notes {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.65;
+    }
+
+    .notes li {
+      position: relative;
+      padding: 0 0 11px 14px;
+    }
+
+    .notes li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 8px;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--orange);
+    }
+
+    .note-callout {
+      margin-top: 12px;
+      padding: 11px 12px;
+      border-left: 2px solid var(--orange);
+      background: var(--orange-soft);
+      color: #d9c2aa;
+      font-size: 11px;
+      line-height: 1.65;
+    }
+
+    .keyboard-hint {
+      color: var(--faint);
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .toast {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      z-index: 10;
+      max-width: min(360px, calc(100vw - 40px));
+      padding: 11px 14px;
+      border: 1px solid #3e626d;
+      border-radius: 8px;
+      background: #122b2b;
+      color: var(--text);
+      font-size: 12px;
+      line-height: 1.5;
+      transform: translateY(16px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 160ms ease, transform 160ms ease;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    @media (max-width: 1180px) {
+      .workspace {
+        grid-template-columns: 200px minmax(0, 1fr);
+      }
+
+      .inspector {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 26px;
+        border-left: 0;
+        border-top: 1px solid var(--line);
+      }
+
+      .inspector section + section {
+        margin-top: 0;
+        padding-top: 0;
+        border-top: 0;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .workspace {
+        display: block;
+      }
+
+      .rail {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .steps li {
+        min-height: 0;
+        padding-bottom: 8px;
+      }
+
+      .steps li::after {
+        display: none;
+      }
+
+      .rail-note {
+        display: none;
+      }
+
+      .viz-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .topbar {
+        padding: 12px 14px;
+      }
+
+      .brand span,
+      .local-badge {
+        display: none;
+      }
+
+      .main {
+        padding: 18px 14px 26px;
+      }
+
+      .headline {
+        display: block;
+      }
+
+      .source-actions {
+        margin-top: 14px;
+      }
+
+      .control-grid,
+      .inspector {
+        grid-template-columns: 1fr;
+      }
+
+      .transport-divider,
+      .transport-spacer {
+        display: none;
+      }
+
+      .transport {
+        gap: 8px;
+      }
+
+      .transport-copy {
+        min-width: 72px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <strong>氦语音 · 矫正实验台</strong>
+        <span>共振峰回移与音高保持</span>
+      </div>
+      <div class="top-actions">
+        <span class="local-badge">本地处理，不上传音频</span>
+        <button class="button quiet" id="helpButton" type="button">方法说明</button>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <aside class="rail" aria-label="处理流程">
+        <p class="eyebrow">信号链</p>
+        <ol class="steps">
+          <li>
+            <strong>载入畸变语音</strong>
+            <span>使用示例、上传文件或麦克风录音。</span>
+          </li>
+          <li>
+            <strong>设定频率映射</strong>
+            <span>拖动四个锚点，或按氦氧声速比自动生成。</span>
+          </li>
+          <li>
+            <strong>校正频谱包络</strong>
+            <span>移动共振峰，但不直接移动基频。</span>
+          </li>
+          <li>
+            <strong>对比并微调</strong>
+            <span>先听，再配合高频恢复反复调整。</span>
+          </li>
+        </ol>
+        <div class="rail-note">
+          <strong>关键区别</strong><br>
+          “唐老鸭”主要来自声道共振峰整体上移，基频通常变化较小。整段录音简单变调会把音高一起压低，听感仍然不对。
+        </div>
+      </aside>
+
+      <main class="main">
+        <div class="headline">
+          <div>
+            <h1>把畸变的共振峰拉回正常位置</h1>
+            <p>输入可以是真实录音；示例是合成元音序列，用来展示氦语音的“共振峰上移、音高不变”特征。所有计算都在当前浏览器完成。</p>
+          </div>
+          <div class="source-actions">
+            <button class="button primary" id="exampleButton" type="button">载入示例</button>
+          </div>
+        </div>
+
+        <section class="drop-zone" id="dropZone" aria-label="音频文件输入">
+          <div class="source-icon" aria-hidden="true">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M12 16V4m0 0-4 4m4-4 4 4M5 14v5h14v-5"/>
+            </svg>
+          </div>
+          <div class="source-copy">
+            <strong id="sourceName">尚未载入音频</strong>
+            <span id="sourceMeta">拖入 WAV、MP3、M4A 或 OGG，也可以点击右侧按钮。</span>
+          </div>
+          <input class="input-file" id="fileInput" type="file" accept="audio/*,.wav,.mp3,.m4a,.ogg">
+          <button class="button" id="uploadButton" type="button">选择文件</button>
+          <button class="button" id="recordButton" type="button">麦克风</button>
+        </section>
+
+        <section class="transport" aria-label="音频播放">
+          <button class="play-button" id="playReference" type="button" disabled title="播放正常参考">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M4 2.8v10.4L13 8 4 2.8Z"/>
+            </svg>
+          </button>
+          <div class="transport-copy">
+            <strong>正常参考</strong>
+            <span id="referenceMeta">示例载入后可用</span>
+          </div>
+          <div class="transport-divider"></div>
+          <button class="play-button" id="playInput" type="button" disabled title="播放待矫正语音">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M4 2.8v10.4L13 8 4 2.8Z"/>
+            </svg>
+          </button>
+          <div class="transport-copy">
+            <strong>畸变输入</strong>
+            <span id="inputMeta">尚未载入</span>
+          </div>
+          <div class="transport-divider"></div>
+          <button class="play-button" id="playOutput" type="button" disabled title="播放矫正结果">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M4 2.8v10.4L13 8 4 2.8Z"/>
+            </svg>
+          </button>
+          <div class="transport-copy">
+            <strong>矫正输出</strong>
+            <span id="outputMeta">等待处理</span>
+          </div>
+          <div class="transport-spacer"></div>
+          <span class="process-state" id="processState">等待音频</span>
+          <button class="button primary" id="processButton" type="button" disabled>应用矫正</button>
+        </section>
+
+        <div class="viz-grid">
+          <section class="panel" aria-labelledby="mappingTitle">
+            <div class="panel-head">
+              <div>
+                <h2 id="mappingTitle">频率映射</h2>
+                <p>拖动圆点：畸变频率应移到哪个目标频率。</p>
+              </div>
+              <span class="panel-tag" id="mappingTag">1.00×</span>
+            </div>
+            <div class="mapping-wrap">
+              <canvas id="mappingCanvas" height="310" aria-label="可拖动的频率映射编辑器"></canvas>
+            </div>
+            <div class="mapping-help">
+              <span>灰线：不处理</span>
+              <span>青线：当前映射</span>
+              <span>双击画布恢复自动</span>
+            </div>
+          </section>
+
+          <section class="panel spectrum-panel" aria-labelledby="spectrumTitle">
+            <div class="panel-head">
+              <div>
+                <h2 id="spectrumTitle">频谱与波形对比</h2>
+                <p>坐标单位：时间 s；频率 Hz；幅度已归一化。</p>
+              </div>
+              <div class="legend">
+                <span><i class="swatch gray"></i>参考</span>
+                <span><i class="swatch orange"></i>畸变</span>
+                <span><i class="swatch cyan"></i>矫正</span>
+              </div>
+            </div>
+            <div class="canvas-stack">
+              <div class="canvas-label">
+                <span>时域波形</span>
+                <span id="durationLabel">--</span>
+              </div>
+              <canvas id="waveCanvas" height="104" aria-label="参考、畸变与矫正波形"></canvas>
+              <div class="canvas-label">
+                <span>平均幅度谱</span>
+                <span>0 - 5 kHz</span>
+              </div>
+              <canvas id="spectrumCanvas" height="238" aria-label="参考、畸变与矫正频谱"></canvas>
+            </div>
+          </section>
+        </div>
+
+        <section class="parameter-block" aria-labelledby="parameterTitle">
+          <div class="parameter-head">
+            <h2 id="parameterTitle">手动校准</h2>
+            <span>先自动逆映射，再按听感微调</span>
+          </div>
+          <div class="control-grid">
+            <div class="control">
+              <label for="crRange">
+                <span>声速比 CR</span>
+                <output id="crValue" for="crRange">2.30×</output>
+              </label>
+              <input id="crRange" type="range" min="1" max="3" step="0.01" value="2.3">
+            </div>
+            <div class="control">
+              <label for="smoothRange">
+                <span>包络平滑</span>
+                <output id="smoothValue" for="smoothRange">中</output>
+              </label>
+              <input id="smoothRange" type="range" min="2" max="24" step="1" value="10">
+            </div>
+            <div class="control">
+              <label for="highRange">
+                <span>高频恢复</span>
+                <output id="highValue" for="highRange">6 dB</output>
+              </label>
+              <input id="highRange" type="range" min="0" max="18" step="1" value="6">
+            </div>
+          </div>
+          <div class="button-row" style="margin-top: 15px;">
+            <button class="button" id="autoMapButton" type="button">按 CR 恢复映射</button>
+            <button class="button quiet" id="resetAnchorsButton" type="button">重置锚点</button>
+            <button class="button" id="exportButton" type="button" disabled>导出 WAV</button>
+          </div>
+        </section>
+      </main>
+
+      <aside class="inspector" aria-label="诊断信息">
+        <section>
+          <p class="eyebrow">当前状态</p>
+          <div class="status-line">
+            <span>处理进度</span>
+            <strong id="progressText">0%</strong>
+          </div>
+          <div class="meter"><div class="meter-fill" id="progressBar"></div></div>
+          <div style="margin-top: 14px;">
+            <div class="metric"><span>输入长度</span><strong id="metricDuration">--</strong></div>
+            <div class="metric"><span>采样率</span><strong id="metricSampleRate">--</strong></div>
+            <div class="metric"><span>预计声速比</span><strong id="metricCr">2.30×</strong></div>
+            <div class="metric"><span>音高</span><strong>保持</strong></div>
+            <div class="metric"><span>处理方式</span><strong>STFT 包络</strong></div>
+          </div>
+        </section>
+
+        <section>
+          <p class="eyebrow">怎样判断调对了</p>
+          <ul class="notes">
+            <li>先与正常参考比较元音位置，不先追求“更响”。</li>
+            <li>150 - 1200 Hz 的 F1/F2 决定常听到的“鸭子腔”位置。</li>
+            <li>高频恢复只补清晰度；过量会让齿音刺耳。</li>
+            <li>每次只改一个参数，并保持其他条件不变。</li>
+          </ul>
+          <div class="note-callout">
+            这个网页演示的是物理逆映射和手工校准。论文中的 GRNN 方案还需要成对的“面罩畸变语音 / 正常语音”训练集，不能仅靠调网页参数替代。
+          </div>
+        </section>
+
+        <section>
+          <p class="eyebrow">快捷操作</p>
+          <div class="keyboard-hint">
+            空格：播放或暂停当前音轨<br>
+            A：按声速比恢复映射<br>
+            E：载入内置示例<br>
+            Ctrl + Enter：应用矫正
+          </div>
+        </section>
+      </aside>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const state = {
+        audioContext: null,
+        sourceNode: null,
+        currentPlayback: null,
+        referenceBuffer: null,
+        inputBuffer: null,
+        outputBuffer: null,
+        inputName: "",
+        isExample: false,
+        isProcessing: false,
+        isRecording: false,
+        mediaRecorder: null,
+        mediaStream: null,
+        anchors: [0, 1, 2, 3].map(() => ({ x: 0, y: 0, fixed: false })),
+        draggingAnchor: -1,
+        canvasDpr: 1
+      };
+
+      const MAX_MAP_HZ = 5000;
+      const DEFAULT_CR = 2.3;
+      const els = {
+        dropZone: document.getElementById("dropZone"),
+        fileInput: document.getElementById("fileInput"),
+        uploadButton: document.getElementById("uploadButton"),
+        recordButton: document.getElementById("recordButton"),
+        exampleButton: document.getElementById("exampleButton"),
+        helpButton: document.getElementById("helpButton"),
+        sourceName: document.getElementById("sourceName"),
+        sourceMeta: document.getElementById("sourceMeta"),
+        processButton: document.getElementById("processButton"),
+        processState: document.getElementById("processState"),
+        progressText: document.getElementById("progressText"),
+        progressBar: document.getElementById("progressBar"),
+        playReference: document.getElementById("playReference"),
+        playInput: document.getElementById("playInput"),
+        playOutput: document.getElementById("playOutput"),
+        referenceMeta: document.getElementById("referenceMeta"),
+        inputMeta: document.getElementById("inputMeta"),
+        outputMeta: document.getElementById("outputMeta"),
+        mappingCanvas: document.getElementById("mappingCanvas"),
+        waveCanvas: document.getElementById("waveCanvas"),
+        spectrumCanvas: document.getElementById("spectrumCanvas"),
+        mappingTag: document.getElementById("mappingTag"),
+        durationLabel: document.getElementById("durationLabel"),
+        crRange: document.getElementById("crRange"),
+        smoothRange: document.getElementById("smoothRange"),
+        highRange: document.getElementById("highRange"),
+        crValue: document.getElementById("crValue"),
+        smoothValue: document.getElementById("smoothValue"),
+        highValue: document.getElementById("highValue"),
+        autoMapButton: document.getElementById("autoMapButton"),
+        resetAnchorsButton: document.getElementById("resetAnchorsButton"),
+        exportButton: document.getElementById("exportButton"),
+        metricDuration: document.getElementById("metricDuration"),
+        metricSampleRate: document.getElementById("metricSampleRate"),
+        metricCr: document.getElementById("metricCr"),
+        toast: document.getElementById("toast")
+      };
+
+      let toastTimer = 0;
+
+      function toast(message) {
+        window.clearTimeout(toastTimer);
+        els.toast.textContent = message;
+        els.toast.classList.add("show");
+        toastTimer = window.setTimeout(() => els.toast.classList.remove("show"), 3600);
+      }
+
+      function context() {
+        if (!state.audioContext) {
+          state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (state.audioContext.state === "suspended") {
+          state.audioContext.resume();
+        }
+        return state.audioContext;
+      }
+
+      function setProgress(percent) {
+        const safe = Math.max(0, Math.min(100, Math.round(percent)));
+        els.progressText.textContent = `${safe}%`;
+        els.progressBar.style.width = `${safe}%`;
+      }
+
+      function setProcessState(text, kind = "") {
+        els.processState.textContent = text;
+        els.processState.className = `process-state ${kind}`.trim();
+      }
+
+      function formatTime(seconds) {
+        if (!Number.isFinite(seconds)) return "--";
+        return `${seconds.toFixed(2)} s`;
+      }
+
+      function updateParameterLabels() {
+        const cr = Number(els.crRange.value);
+        const smooth = Number(els.smoothRange.value);
+        const high = Number(els.highRange.value);
+        els.crValue.textContent = `${cr.toFixed(2)}×`;
+        els.metricCr.textContent = `${cr.toFixed(2)}×`;
+        els.mappingTag.textContent = `${cr.toFixed(2)}×`;
+        els.smoothValue.textContent = smooth <= 7 ? "低" : smooth >= 16 ? "高" : "中";
+        els.highValue.textContent = `${high} dB`;
+      }
+
+      function autoAnchors() {
+        const cr = Number(els.crRange.value);
+        const xs = [0, 1600, 3200, MAX_MAP_HZ];
+        state.anchors = xs.map((x) => ({
+          x,
+          y: x === 0 ? 0 : Math.min(MAX_MAP_HZ, x / cr),
+          fixed: x === 0
+        }));
+        drawMapping();
+      }
+
+      function niceTick(value) {
+        return `${Math.round(value / 100) / 10}k`;
+      }
+
+      function prepareCanvas(canvas) {
+        const rect = canvas.getBoundingClientRect();
+        const dpr = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
+        const width = Math.max(1, Math.round(rect.width * dpr));
+        const height = Math.max(1, Math.round(rect.height * dpr));
+        if (canvas.width !== width || canvas.height !== height) {
+          canvas.width = width;
+          canvas.height = height;
+        }
+        const ctx = canvas.getContext("2d");
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        return { ctx, width: rect.width, height: rect.height, dpr };
+      }
+
+      function mappingGeometry() {
+        const rect = els.mappingCanvas.getBoundingClientRect();
+        return {
+          left: 50,
+          top: 18,
+          width: Math.max(1, rect.width - 68),
+          height: Math.max(1, rect.height - 54)
+        };
+      }
+
+      function toCanvasX(freq, geometry) {
+        return geometry.left + (freq / MAX_MAP_HZ) * geometry.width;
+      }
+
+      function toCanvasY(freq, geometry) {
+        return geometry.top + geometry.height - (freq / MAX_MAP_HZ) * geometry.height;
+      }
+
+      function drawMapping() {
+        const { ctx, width, height } = prepareCanvas(els.mappingCanvas);
+        const geometry = mappingGeometry();
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = "#091522";
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.strokeStyle = "#1b3143";
+        ctx.lineWidth = 1;
+        ctx.font = '10px "Consolas", monospace';
+        ctx.fillStyle = "#698397";
+        for (let i = 0; i <= 5; i += 1) {
+          const freq = (MAX_MAP_HZ / 5) * i;
+          const x = toCanvasX(freq, geometry);
+          const y = toCanvasY(freq, geometry);
+          ctx.beginPath();
+          ctx.moveTo(x, geometry.top);
+          ctx.lineTo(x, geometry.top + geometry.height);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(geometry.left, y);
+          ctx.lineTo(geometry.left + geometry.width, y);
+          ctx.stroke();
+          ctx.textAlign = "center";
+          ctx.fillText(i === 0 ? "0" : niceTick(freq), x, geometry.top + geometry.height + 18);
+          ctx.textAlign = "right";
+          ctx.fillText(i === 0 ? "0" : niceTick(freq), geometry.left - 8, y + 3);
+        }
+
+        ctx.fillStyle = "#7891a3";
+        ctx.textAlign = "center";
+        ctx.fillText("畸变频率 (Hz)", geometry.left + geometry.width / 2, height - 5);
+        ctx.save();
+        ctx.translate(11, geometry.top + geometry.height / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText("目标频率 (Hz)", 0, 0);
+        ctx.restore();
+
+        ctx.setLineDash([5, 5]);
+        ctx.strokeStyle = "#718493";
+        ctx.beginPath();
+        ctx.moveTo(toCanvasX(0, geometry), toCanvasY(0, geometry));
+        ctx.lineTo(toCanvasX(MAX_MAP_HZ, geometry), toCanvasY(MAX_MAP_HZ, geometry));
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.strokeStyle = "#55d6c2";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        state.anchors.forEach((anchor, index) => {
+          const x = toCanvasX(anchor.x, geometry);
+          const y = toCanvasY(anchor.y, geometry);
+          if (index === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+        state.anchors.forEach((anchor) => {
+          const x = toCanvasX(anchor.x, geometry);
+          const y = toCanvasY(anchor.y, geometry);
+          ctx.beginPath();
+          ctx.arc(x, y, anchor.fixed ? 4 : 6, 0, Math.PI * 2);
+          ctx.fillStyle = anchor.fixed ? "#3d5a6f" : "#55d6c2";
+          ctx.fill();
+          ctx.strokeStyle = "#091522";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        });
+      }
+
+      function nearestAnchor(pointerX, pointerY) {
+        const geometry = mappingGeometry();
+        let best = -1;
+        let distance = 18;
+        state.anchors.forEach((anchor, index) => {
+          if (anchor.fixed) return;
+          const dx = toCanvasX(anchor.x, geometry) - pointerX;
+          const dy = toCanvasY(anchor.y, geometry) - pointerY;
+          const current = Math.hypot(dx, dy);
+          if (current < distance) {
+            best = index;
+            distance = current;
+          }
+        });
+        return best;
+      }
+
+      function pointerPosition(event) {
+        const rect = els.mappingCanvas.getBoundingClientRect();
+        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      }
+
+      els.mappingCanvas.addEventListener("pointerdown", (event) => {
+        const pointer = pointerPosition(event);
+        state.draggingAnchor = nearestAnchor(pointer.x, pointer.y);
+        if (state.draggingAnchor >= 0) {
+          els.mappingCanvas.setPointerCapture(event.pointerId);
+        }
+      });
+
+      els.mappingCanvas.addEventListener("pointermove", (event) => {
+        if (state.draggingAnchor < 0) return;
+        const pointer = pointerPosition(event);
+        const geometry = mappingGeometry();
+        const value = (geometry.top + geometry.height - pointer.y) / geometry.height * MAX_MAP_HZ;
+        state.anchors[state.draggingAnchor].y = Math.max(0, Math.min(MAX_MAP_HZ, value));
+        drawMapping();
+      });
+
+      els.mappingCanvas.addEventListener("pointerup", () => {
+        state.draggingAnchor = -1;
+      });
+
+      els.mappingCanvas.addEventListener("pointercancel", () => {
+        state.draggingAnchor = -1;
+      });
+
+      els.mappingCanvas.addEventListener("dblclick", () => {
+        autoAnchors();
+        toast("已恢复按声速比生成的映射。");
+      });
+
+      function interpolate(points, x) {
+        if (x <= points[0][0]) return points[0][1];
+        for (let i = 1; i < points.length; i += 1) {
+          if (x <= points[i][0]) {
+            const [x0, y0] = points[i - 1];
+            const [x1, y1] = points[i];
+            const ratio = x1 === x0 ? 0 : (x - x0) / (x1 - x0);
+            return y0 + (y1 - y0) * ratio;
+          }
+        }
+        return points[points.length - 1][1];
+      }
+
+      function sourceFrequencyForOutput(outputHz) {
+        const mapped = state.anchors.map((anchor) => [anchor.y, anchor.x]);
+        for (let i = 1; i < mapped.length; i += 1) {
+          if (mapped[i][0] < mapped[i - 1][0]) {
+            // Ensure the inverse lookup is monotonic when a user drags a point below the prior one.
+            const slice = mapped.slice(i - 1, i + 1).sort((a, b) => a[0] - b[0]);
+            mapped[i - 1] = slice[0];
+            mapped[i] = slice[1];
+          }
+        }
+        return interpolate(mapped, outputHz);
+      }
+
+      function fft(real, imag) {
+        const n = real.length;
+        for (let i = 1, j = 0; i < n; i += 1) {
+          let bit = n >> 1;
+          while (j & bit) {
+            j ^= bit;
+            bit >>= 1;
+          }
+          j ^= bit;
+          if (i < j) {
+            [real[i], real[j]] = [real[j], real[i]];
+            [imag[i], imag[j]] = [imag[j], imag[i]];
+          }
+        }
+        for (let length = 2; length <= n; length <<= 1) {
+          const angle = -2 * Math.PI / length;
+          const wLengthReal = Math.cos(angle);
+          const wLengthImag = Math.sin(angle);
+          for (let start = 0; start < n; start += length) {
+            let wReal = 1;
+            let wImag = 0;
+            for (let offset = 0; offset < length / 2; offset += 1) {
+              const even = start + offset;
+              const odd = even + length / 2;
+              const oddReal = real[odd] * wReal - imag[odd] * wImag;
+              const oddImag = real[odd] * wImag + imag[odd] * wReal;
+              const evenReal = real[even];
+              const evenImag = imag[even];
+              real[even] = evenReal + oddReal;
+              imag[even] = evenImag + oddImag;
+              real[odd] = evenReal - oddReal;
+              imag[odd] = evenImag - oddImag;
+              const nextReal = wReal * wLengthReal - wImag * wLengthImag;
+              wImag = wReal * wLengthImag + wImag * wLengthReal;
+              wReal = nextReal;
+            }
+          }
+        }
+      }
+
+      function ifft(real, imag) {
+        for (let i = 0; i < imag.length; i += 1) imag[i] = -imag[i];
+        fft(real, imag);
+        for (let i = 0; i < real.length; i += 1) {
+          real[i] /= real.length;
+          imag[i] = -imag[i] / real.length;
+        }
+      }
+
+      function hannWindow(size) {
+        const values = new Float32Array(size);
+        for (let i = 0; i < size; i += 1) {
+          values[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (size - 1));
+        }
+        return values;
+      }
+
+      function movingAverage(values, radius) {
+        const result = new Float32Array(values.length);
+        let sum = 0;
+        for (let i = 0; i < values.length; i += 1) {
+          const addAt = i + radius;
+          const removeAt = i - radius - 1;
+          if (addAt < values.length) sum += values[addAt];
+          if (removeAt >= 0) sum -= values[removeAt];
+          const count = Math.min(values.length - 1, addAt) - Math.max(0, removeAt + 1) + 1;
+          result[i] = sum / Math.max(1, count);
+        }
+        return result;
+      }
+
+      function sampleLinear(values, position) {
+        const safe = Math.max(0, Math.min(values.length - 1, position));
+        const lower = Math.floor(safe);
+        const upper = Math.min(values.length - 1, lower + 1);
+        const ratio = safe - lower;
+        return values[lower] * (1 - ratio) + values[upper] * ratio;
+      }
+
+      function copyBuffer(buffer) {
+        const ctx = context();
+        const copy = ctx.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
+        for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
+          copy.copyToChannel(buffer.getChannelData(channel), channel);
+        }
+        return copy;
+      }
+
+      function monoAudio(buffer) {
+        const mono = new Float32Array(buffer.length);
+        for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
+          const data = buffer.getChannelData(channel);
+          for (let i = 0; i < data.length; i += 1) {
+            if (Number.isFinite(data[i])) mono[i] += data[i] / buffer.numberOfChannels;
+          }
+        }
+        return mono;
+      }
+
+      function normalize(samples, peak = 0.94) {
+        let maximum = 0;
+        for (let i = 0; i < samples.length; i += 1) {
+          if (!Number.isFinite(samples[i])) samples[i] = 0;
+          maximum = Math.max(maximum, Math.abs(samples[i]));
+        }
+        if (maximum > 1e-8) {
+          const scale = peak / maximum;
+          for (let i = 0; i < samples.length; i += 1) samples[i] *= scale;
+        }
+        return samples;
+      }
+
+      function bufferFromMono(samples, sampleRate) {
+        const ctx = context();
+        const buffer = ctx.createBuffer(1, samples.length, sampleRate);
+        buffer.copyToChannel(samples, 0);
+        return buffer;
+      }
+
+      function synthesizeExample() {
+        const ctx = context();
+        const sampleRate = 48000;
+        const duration = 2.35;
+        const length = Math.floor(sampleRate * duration);
+        const vowels = [
+          { start: 0.05, end: 0.42, formants: [800, 1200, 2500] },
+          { start: 0.43, end: 0.78, formants: [320, 2200, 2950] },
+          { start: 0.79, end: 1.14, formants: [390, 860, 2350] },
+          { start: 1.15, end: 1.51, formants: [520, 1880, 2600] },
+          { start: 1.52, end: 1.94, formants: [510, 980, 2480] },
+          { start: 1.95, end: 2.27, formants: [760, 1180, 2520] }
+        ];
+        const f0 = 118;
+        const harmonicCount = Math.floor(5000 / f0);
+        const phases = Array.from({ length: harmonicCount + 1 }, () => Math.random() * Math.PI * 2);
+        const reference = new Float32Array(length);
+        const helium = new Float32Array(length);
+        const cr = DEFAULT_CR;
+
+        function envelopeAmplitude(freq, formants, scale) {
+          let value = 0;
+          for (let index = 0; index < formants.length; index += 1) {
+            const center = formants[index] * scale;
+            const bandwidth = [110, 150, 210][index];
+            const distance = (freq - center) / bandwidth;
+            value += [1, 0.58, 0.25][index] * Math.exp(-0.5 * distance * distance);
+          }
+          const glottalTilt = 1 / Math.pow(Math.max(80, freq) / 400, 0.78);
+          return value * glottalTilt;
+        }
+
+        for (let index = 0; index < length; index += 1) {
+          const time = index / sampleRate;
+          const vowel = vowels.find((segment) => time >= segment.start && time <= segment.end);
+          const segmentEnvelope = vowel
+            ? Math.pow(Math.max(0, Math.sin(Math.PI * (time - vowel.start) / (vowel.end - vowel.start))), 0.38)
+            : 0.035;
+          const pitch = f0 * (1 + 0.008 * Math.sin(2 * Math.PI * 4.7 * time));
+          const transitionNoise = vowel
+            ? 0
+            : (Math.random() * 2 - 1) * 0.1 * Math.exp(-8 * ((time * 5) % 1));
+
+          let normalSample = 0;
+          let distortedSample = 0;
+          for (let harmonic = 1; harmonic <= harmonicCount; harmonic += 1) {
+            const harmonicFrequency = harmonic * pitch;
+            if (harmonicFrequency >= sampleRate / 2) break;
+            const phase = 2 * Math.PI * harmonicFrequency * time + phases[harmonic];
+            const normalAmplitude = envelopeAmplitude(harmonicFrequency, vowel ? vowel.formants : [620, 1400, 2500], 1);
+            const heliumAmplitude = envelopeAmplitude(harmonicFrequency, vowel ? vowel.formants : [620, 1400, 2500], cr);
+            normalSample += normalAmplitude * Math.sin(phase);
+            distortedSample += heliumAmplitude * Math.sin(phase);
+          }
+          reference[index] = normalSample * segmentEnvelope + transitionNoise;
+          helium[index] = distortedSample * segmentEnvelope + transitionNoise * 0.65;
+        }
+
+        normalize(reference, 0.82);
+        normalize(helium, 0.82);
+        return {
+          reference: bufferFromMono(reference, sampleRate),
+          input: bufferFromMono(helium, sampleRate),
+          sampleRate
+        };
+      }
+
+      async function processCorrection(buffer) {
+        const sampleRate = buffer.sampleRate;
+        const source = monoAudio(buffer);
+        const frameSize = 1024;
+        const hop = 256;
+        const window = hannWindow(frameSize);
+        const windowSquared = new Float32Array(frameSize);
+        for (let i = 0; i < frameSize; i += 1) windowSquared[i] = window[i] * window[i];
+        const paddedLength = source.length + frameSize * 2;
+        const padded = new Float32Array(paddedLength);
+        padded.set(source, frameSize);
+        const output = new Float32Array(paddedLength);
+        const normalization = new Float32Array(paddedLength);
+        const smoothRadius = Number(els.smoothRange.value);
+        const highFrequencyDb = Number(els.highRange.value);
+        const binHz = sampleRate / frameSize;
+        const frameCount = Math.ceil((paddedLength - frameSize) / hop);
+
+        for (let frame = 0; frame < frameCount; frame += 1) {
+          if (frame % 16 === 0) {
+            setProgress((frame / frameCount) * 82);
+            await new Promise((resolve) => requestAnimationFrame(resolve));
+          }
+          const offset = frame * hop;
+          const real = new Float64Array(frameSize);
+          const imag = new Float64Array(frameSize);
+          for (let i = 0; i < frameSize; i += 1) real[i] = padded[offset + i] * window[i];
+          fft(real, imag);
+
+          const magnitude = new Float32Array(frameSize / 2 + 1);
+          const phase = new Float64Array(frameSize / 2 + 1);
+          for (let bin = 0; bin < magnitude.length; bin += 1) {
+            magnitude[bin] = Math.hypot(real[bin], imag[bin]);
+            phase[bin] = Math.atan2(imag[bin], real[bin]);
+          }
+
+          const envelope = movingAverage(magnitude, smoothRadius);
+          const correctedMagnitude = new Float32Array(magnitude.length);
+          for (let bin = 0; bin < magnitude.length; bin += 1) {
+            const outputFrequency = bin * binHz;
+            const sourceFrequency = sourceFrequencyForOutput(outputFrequency);
+            const sourceBin = sourceFrequency / binHz;
+            const warpedEnvelope = sampleLinear(envelope, sourceBin);
+            const envelopeGain = Math.max(
+              0.35,
+              Math.min(5, warpedEnvelope / Math.max(1e-8, envelope[bin]))
+            );
+            const frequencyWeight = Math.max(0, Math.min(1, (outputFrequency - 1800) / 3000));
+            const highGain = Math.pow(10, (highFrequencyDb * frequencyWeight * frequencyWeight) / 20);
+            correctedMagnitude[bin] = magnitude[bin] * envelopeGain * highGain;
+          }
+
+          for (let bin = 0; bin < correctedMagnitude.length; bin += 1) {
+            const valueReal = correctedMagnitude[bin] * Math.cos(phase[bin]);
+            const valueImag = correctedMagnitude[bin] * Math.sin(phase[bin]);
+            real[bin] = valueReal;
+            imag[bin] = valueImag;
+            if (bin > 0 && bin < frameSize / 2) {
+              real[frameSize - bin] = valueReal;
+              imag[frameSize - bin] = -valueImag;
+            }
+          }
+          ifft(real, imag);
+          for (let i = 0; i < frameSize; i += 1) {
+            output[offset + i] += real[i] * window[i];
+            normalization[offset + i] += windowSquared[i];
+          }
+        }
+
+        const result = new Float32Array(source.length);
+        for (let i = 0; i < result.length; i += 1) {
+          const sourceIndex = i + frameSize;
+          result[i] = output[sourceIndex] / Math.max(1e-6, normalization[sourceIndex]);
+        }
+
+        let sourceEnergy = 0;
+        let resultEnergy = 0;
+        for (let i = 0; i < result.length; i += 1) {
+          sourceEnergy += source[i] * source[i];
+          resultEnergy += result[i] * result[i];
+        }
+        const sourceRms = Math.sqrt(sourceEnergy / Math.max(1, source.length));
+        const resultRms = Math.sqrt(resultEnergy / Math.max(1, result.length));
+        if (Number.isFinite(resultRms) && resultRms > 1e-8) {
+          const loudnessScale = (sourceRms * 0.72) / resultRms;
+          const saturationLimit = 1.35;
+          const saturationNorm = Math.tanh(saturationLimit);
+          for (let i = 0; i < result.length; i += 1) {
+            result[i] = Math.tanh(result[i] * loudnessScale / saturationLimit) * saturationLimit / saturationNorm;
+          }
+        }
+        normalize(result, 0.94);
+        setProgress(100);
+        return bufferFromMono(result, sampleRate);
+      }
+
+      async function loadDemo() {
+        stopPlayback();
+        setProcessState("正在生成示例…", "busy");
+        setProgress(5);
+        await new Promise((resolve) => setTimeout(resolve, 40));
+        const example = synthesizeExample();
+        state.referenceBuffer = example.reference;
+        state.inputBuffer = example.input;
+        state.outputBuffer = null;
+        state.inputName = "内置示例：元音序列";
+        state.isExample = true;
+        els.sourceName.textContent = "内置示例：正常 / 畸变元音序列";
+        els.sourceMeta.textContent = "合成数据，仅用于观察共振峰与音高关系。";
+        els.durationLabel.textContent = formatTime(example.input.duration);
+        els.metricDuration.textContent = formatTime(example.input.duration);
+        els.metricSampleRate.textContent = `${example.input.sampleRate} Hz`;
+        els.referenceMeta.textContent = "正常发声";
+        els.inputMeta.textContent = "共振峰上移";
+        els.outputMeta.textContent = "等待处理";
+        els.playReference.disabled = false;
+        els.playInput.disabled = false;
+        els.playOutput.disabled = true;
+        els.processButton.disabled = false;
+        els.exportButton.disabled = true;
+        autoAnchors();
+        await processLoadedInput();
+        toast("示例已载入；正常参考、畸变输入和矫正结果可直接切换试听。");
+      }
+
+      async function loadFile(file) {
+        if (!file) return;
+        stopPlayback();
+        setProcessState("正在解码…", "busy");
+        setProgress(10);
+        try {
+          const data = await file.arrayBuffer();
+          const buffer = await context().decodeAudioData(data);
+          state.referenceBuffer = buffer;
+          state.inputBuffer = buffer;
+          state.outputBuffer = null;
+          state.inputName = file.name;
+          state.isExample = false;
+          els.sourceName.textContent = file.name;
+          els.sourceMeta.textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB · 本地读取完成`;
+          els.durationLabel.textContent = formatTime(buffer.duration);
+          els.metricDuration.textContent = formatTime(buffer.duration);
+          els.metricSampleRate.textContent = `${buffer.sampleRate} Hz`;
+          els.referenceMeta.textContent = "原始文件";
+          els.inputMeta.textContent = "待矫正输入";
+          els.outputMeta.textContent = "等待处理";
+          els.playReference.disabled = false;
+          els.playInput.disabled = false;
+          els.playOutput.disabled = true;
+          els.processButton.disabled = false;
+          els.exportButton.disabled = true;
+          autoAnchors();
+          drawWaveforms();
+          drawSpectra();
+          await processLoadedInput();
+        } catch (error) {
+          console.error(error);
+          setProcessState("解码失败", "");
+          setProgress(0);
+          toast("这个音频无法在浏览器中解码，请尝试 WAV 或 MP3。");
+        }
+      }
+
+      async function processLoadedInput() {
+        if (!state.inputBuffer || state.isProcessing) return;
+        stopPlayback();
+        state.isProcessing = true;
+        els.processButton.disabled = true;
+        setProcessState("正在校正…", "busy");
+        setProgress(2);
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 20));
+          const result = await processCorrection(state.inputBuffer);
+          state.outputBuffer = result;
+          els.outputMeta.textContent = `${result.duration.toFixed(2)} s`;
+          els.playOutput.disabled = false;
+          els.exportButton.disabled = false;
+          setProcessState("处理完成", "ready");
+          drawWaveforms();
+          drawSpectra();
+        } catch (error) {
+          console.error(error);
+          setProcessState("处理失败", "");
+          setProgress(0);
+          toast("音频处理失败，请换一个较短的 WAV 文件重试。");
+        } finally {
+          state.isProcessing = false;
+          els.processButton.disabled = !state.inputBuffer;
+        }
+      }
+
+      function averageSpectrum(buffer, maxHz = 5000) {
+        const sampleRate = buffer.sampleRate;
+        const frameSize = 2048;
+        const data = monoAudio(buffer);
+        const frameCount = Math.max(1, Math.min(60, Math.floor(data.length / frameSize)));
+        const bins = Math.min(frameSize / 2 + 1, Math.ceil(maxHz / (sampleRate / frameSize)) + 1);
+        const spectrum = new Float64Array(bins);
+        const window = hannWindow(frameSize);
+
+        for (let frame = 0; frame < frameCount; frame += 1) {
+          const offset = Math.floor((frame / Math.max(1, frameCount - 1)) * Math.max(0, data.length - frameSize));
+          const real = new Float64Array(frameSize);
+          const imag = new Float64Array(frameSize);
+          for (let i = 0; i < frameSize; i += 1) real[i] = (data[offset + i] || 0) * window[i];
+          fft(real, imag);
+          for (let bin = 0; bin < bins; bin += 1) {
+            spectrum[bin] += Math.hypot(real[bin], imag[bin]) / frameCount;
+          }
+        }
+        return { values: spectrum, sampleRate, frameSize };
+      }
+
+      function drawWaveforms() {
+        const { ctx, width, height } = prepareCanvas(els.waveCanvas);
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = "#091522";
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.strokeStyle = "#172d40";
+        ctx.beginPath();
+        ctx.moveTo(0, height / 2);
+        ctx.lineTo(width, height / 2);
+        ctx.stroke();
+
+        const draw = (buffer, color, widthScale = 1) => {
+          if (!buffer) return;
+          const samples = monoAudio(buffer);
+          const step = Math.max(1, Math.floor(samples.length / width));
+          ctx.strokeStyle = color;
+          ctx.lineWidth = widthScale;
+          ctx.beginPath();
+          for (let x = 0; x < width; x += 1) {
+            const start = Math.floor(x * step);
+            const end = Math.min(samples.length, start + step);
+            let min = 1;
+            let max = -1;
+            for (let i = start; i < end; i += 1) {
+              min = Math.min(min, samples[i]);
+              max = Math.max(max, samples[i]);
+            }
+            const y1 = height / 2 - max * height * 0.43;
+            const y2 = height / 2 - min * height * 0.43;
+            ctx.moveTo(x + 0.5, y1);
+            ctx.lineTo(x + 0.5, y2);
+          }
+          ctx.stroke();
+        };
+
+        draw(state.referenceBuffer, "rgba(117, 137, 154, 0.5)", 1);
+        draw(state.inputBuffer, "rgba(242, 166, 90, 0.82)", 1.2);
+        draw(state.outputBuffer, "rgba(85, 214, 194, 0.95)", 1.5);
+      }
+
+      function drawSpectra() {
+        const { ctx, width, height } = prepareCanvas(els.spectrumCanvas);
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = "#091522";
+        ctx.fillRect(0, 0, width, height);
+        const margin = { left: 45, right: 15, top: 12, bottom: 28 };
+        const plotWidth = Math.max(1, width - margin.left - margin.right);
+        const plotHeight = Math.max(1, height - margin.top - margin.bottom);
+
+        ctx.strokeStyle = "#193044";
+        ctx.fillStyle = "#698397";
+        ctx.font = '10px "Consolas", monospace';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 5; i += 1) {
+          const x = margin.left + (plotWidth / 5) * i;
+          ctx.beginPath();
+          ctx.moveTo(x, margin.top);
+          ctx.lineTo(x, margin.top + plotHeight);
+          ctx.stroke();
+          ctx.textAlign = "center";
+          ctx.fillText(i === 0 ? "0" : `${i}k`, x, height - 8);
+        }
+        for (let i = 0; i <= 4; i += 1) {
+          const y = margin.top + (plotHeight / 4) * i;
+          ctx.beginPath();
+          ctx.moveTo(margin.left, y);
+          ctx.lineTo(margin.left + plotWidth, y);
+          ctx.stroke();
+        }
+        ctx.textAlign = "center";
+        ctx.fillText("频率 (Hz)", margin.left + plotWidth / 2, height - 1);
+
+        const spectra = [
+          { buffer: state.referenceBuffer, color: "rgba(117, 137, 154, 0.6)", width: 1.2 },
+          { buffer: state.inputBuffer, color: "rgba(242, 166, 90, 0.9)", width: 1.5 },
+          { buffer: state.outputBuffer, color: "rgba(85, 214, 194, 1)", width: 1.8 }
+        ].filter((item) => item.buffer);
+
+        transforms = spectra.map((item) => ({ ...item, ...averageSpectrum(item.buffer) }));
+        let peak = 0;
+        transforms.forEach((item) => {
+          for (let i = 0; i < item.values.length; i += 1) peak = Math.max(peak, item.values[i]);
+        });
+        peak = Math.max(1e-9, peak);
+
+        transforms.forEach((item) => {
+          ctx.strokeStyle = item.color;
+          ctx.lineWidth = item.width;
+          ctx.beginPath();
+          for (let pixel = 0; pixel < plotWidth; pixel += 1) {
+            const frequency = (pixel / plotWidth) * MAX_MAP_HZ;
+            const bin = (frequency / item.sampleRate) * item.frameSize;
+            let value = 0;
+            const radius = 5;
+            let count = 0;
+            for (let offset = -radius; offset <= radius; offset += 1) {
+              const index = Math.round(bin) + offset;
+              if (index >= 0 && index < item.values.length) {
+                value += item.values[index];
+                count += 1;
+              }
+            }
+            value = count ? value / count : 0;
+            const level = 20 * Math.log10(Math.max(1e-8, value / peak));
+            const normalized = Math.max(0, Math.min(1, (level + 54) / 54));
+            const x = margin.left + pixel;
+            const y = margin.top + plotHeight * (1 - normalized);
+            if (pixel === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        });
+      }
+
+      let transforms = [];
+
+      function stopPlayback() {
+        if (state.sourceNode) {
+          try {
+            state.sourceNode.stop();
+          } catch (error) {
+            // The node may already have ended.
+          }
+          state.sourceNode.disconnect();
+          state.sourceNode = null;
+        }
+        state.currentPlayback = null;
+        [els.playReference, els.playInput, els.playOutput].forEach((button) => {
+          button.classList.remove("active");
+        });
+      }
+
+      function play(kind) {
+        const buffers = {
+          reference: state.referenceBuffer,
+          input: state.inputBuffer,
+          output: state.outputBuffer
+        };
+        const buffer = buffers[kind];
+        if (!buffer) {
+          toast("这条音轨还没有可播放的内容。");
+          return;
+        }
+        const wasCurrent = state.currentPlayback === kind;
+        stopPlayback();
+        if (wasCurrent) return;
+        const ctx = context();
+        const source = ctx.createBufferSource();
+        const compressor = ctx.createDynamicsCompressor();
+        compressor.threshold.value = -8;
+        compressor.knee.value = 18;
+        compressor.ratio.value = 4;
+        compressor.attack.value = 0.003;
+        compressor.release.value = 0.2;
+        source.buffer = buffer;
+        source.connect(compressor).connect(ctx.destination);
+        source.onended = () => {
+          if (state.sourceNode === source) {
+            state.sourceNode = null;
+            state.currentPlayback = null;
+            [els.playReference, els.playInput, els.playOutput].forEach((button) => {
+              button.classList.remove("active");
+            });
+          }
+        };
+        state.sourceNode = source;
+        state.currentPlayback = kind;
+        const target = { reference: els.playReference, input: els.playInput, output: els.playOutput }[kind];
+        target.classList.add("active");
+        source.start();
+      }
+
+      function encodeWav(buffer) {
+        const channels = Math.min(2, buffer.numberOfChannels);
+        const sampleRate = buffer.sampleRate;
+        const frames = buffer.length;
+        const bytesPerSample = 2;
+        const blockAlign = channels * bytesPerSample;
+        const dataSize = frames * blockAlign;
+        const arrayBuffer = new ArrayBuffer(44 + dataSize);
+        const view = new DataView(arrayBuffer);
+        const writeText = (offset, text) => {
+          for (let i = 0; i < text.length; i += 1) view.setUint8(offset + i, text.charCodeAt(i));
+        };
+        writeText(0, "RIFF");
+        view.setUint32(4, 36 + dataSize, true);
+        writeText(8, "WAVE");
+        writeText(12, "fmt ");
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, channels, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * blockAlign, true);
+        view.setUint16(32, blockAlign, true);
+        view.setUint16(34, 16, true);
+        writeText(36, "data");
+        view.setUint32(40, dataSize, true);
+        let offset = 44;
+        for (let frame = 0; frame < frames; frame += 1) {
+          for (let channel = 0; channel < channels; channel += 1) {
+            const sample = Math.max(-1, Math.min(1, buffer.getChannelData(channel)[frame]));
+            view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+            offset += 2;
+          }
+        }
+        return new Blob([arrayBuffer], { type: "audio/wav" });
+      }
+
+      function exportWav() {
+        if (!state.outputBuffer) return;
+        const blob = encodeWav(state.outputBuffer);
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "helium-speech-corrected.wav";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(link.href), 3000);
+      }
+
+      async function toggleRecording() {
+        if (state.isRecording) {
+          state.mediaRecorder.stop();
+          return;
+        }
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const recorder = new MediaRecorder(stream);
+          const chunks = [];
+          state.mediaStream = stream;
+          state.mediaRecorder = recorder;
+          state.isRecording = true;
+          els.recordButton.textContent = "停止录音";
+          els.recordButton.classList.add("danger");
+          recorder.ondataavailable = (event) => {
+            if (event.data.size) chunks.push(event.data);
+          };
+          recorder.onstop = async () => {
+            state.isRecording = false;
+            els.recordButton.textContent = "麦克风";
+            els.recordButton.classList.remove("danger");
+            stream.getTracks().forEach((track) => track.stop());
+            state.mediaStream = null;
+            const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+            await loadFile(new File([blob], "microphone-recording.webm", { type: blob.type }));
+          };
+          recorder.start();
+          toast("正在录音；再次点击“停止录音”结束。");
+        } catch (error) {
+          console.error(error);
+          toast("无法访问麦克风。你也可以直接上传音频文件。");
+        }
+      }
+
+      els.uploadButton.addEventListener("click", () => els.fileInput.click());
+      els.fileInput.addEventListener("change", () => {
+        loadFile(els.fileInput.files[0]);
+        els.fileInput.value = "";
+      });
+      els.exampleButton.addEventListener("click", loadDemo);
+      els.recordButton.addEventListener("click", toggleRecording);
+      els.processButton.addEventListener("click", processLoadedInput);
+      els.exportButton.addEventListener("click", exportWav);
+      els.playReference.addEventListener("click", () => play("reference"));
+      els.playInput.addEventListener("click", () => play("input"));
+      els.playOutput.addEventListener("click", () => play("output"));
+      els.autoMapButton.addEventListener("click", () => {
+        autoAnchors();
+        toast("频率映射已按声速比重新计算。点击“应用矫正”后试听。");
+      });
+      els.resetAnchorsButton.addEventListener("click", () => {
+        els.smoothRange.value = "10";
+        els.highRange.value = "6";
+        autoAnchors();
+        updateParameterLabels();
+        toast("平滑与高频恢复已恢复默认值。");
+      });
+      els.helpButton.addEventListener("click", () => {
+        toast("先载入示例：参考音正常，输入音共振峰上移。应用矫正后，频谱中的共振峰应向左回到参考位置。");
+      });
+      els.crRange.addEventListener("input", () => {
+        updateParameterLabels();
+        autoAnchors();
+      });
+      els.smoothRange.addEventListener("input", updateParameterLabels);
+      els.highRange.addEventListener("input", updateParameterLabels);
+
+      els.dropZone.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        els.dropZone.classList.add("dragging");
+      });
+      els.dropZone.addEventListener("dragleave", () => els.dropZone.classList.remove("dragging"));
+      els.dropZone.addEventListener("drop", (event) => {
+        event.preventDefault();
+        els.dropZone.classList.remove("dragging");
+        const file = [...event.dataTransfer.files].find((item) => item.type.startsWith("audio/"));
+        if (file) loadFile(file);
+      });
+
+      document.addEventListener("keydown", (event) => {
+        const tag = document.activeElement?.tagName;
+        if (tag === "INPUT" && document.activeElement.type === "range") return;
+        if (event.code === "Space") {
+          event.preventDefault();
+          if (state.outputBuffer) play("output");
+          else if (state.inputBuffer) play("input");
+        } else if (event.key.toLowerCase() === "a" && !event.ctrlKey && !event.metaKey) {
+          autoAnchors();
+        } else if (event.key.toLowerCase() === "e" && !event.ctrlKey && !event.metaKey) {
+          loadDemo();
+        } else if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+          event.preventDefault();
+          processLoadedInput();
+        }
+      });
+
+      window.addEventListener("resize", () => {
+        drawMapping();
+        drawWaveforms();
+        drawSpectra();
+      });
+
+      updateParameterLabels();
+      autoAnchors();
+      drawWaveforms();
+      drawSpectra();
+      setProgress(0);
+    })();
+  </script>
+</body>
+</html>
