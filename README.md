@@ -1,5 +1,7 @@
 # 氦语音矫正实验台
 
+公开链接：[https://xiaohe888-666.github.io/helium-voice-correction-lab/](https://xiaohe888-666.github.io/helium-voice-correction-lab/)
+
 直接双击 `index.html` 即可打开。音频处理和导出均在本机浏览器内完成，不会上传录音。
 
 ## 建议演示顺序
